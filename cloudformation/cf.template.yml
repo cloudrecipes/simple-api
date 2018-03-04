@@ -214,6 +214,7 @@ Resources:
   LoadBalancerSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupDescription: Access to load balancer that sits in front of EC2 hosts
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - CidrIp: 0.0.0.0/0
@@ -225,6 +226,7 @@ Resources:
   EC2HostSecurityGroup:
     Type: AWS::EC2::SecurityGroup
     Properties:
+      GroupDescription: Access to EC2 hosts which run services
       VpcId: !Ref VPC
       SecurityGroupIngress:
         - SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
