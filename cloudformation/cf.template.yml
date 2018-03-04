@@ -208,6 +208,31 @@ Resources:
       RouteTableId: !Ref PrivateRouteTable2
       SubnetId: !Ref PrivateSubnet2
 
+  # ############################################################################
+  # Security groups
+  # ############################################################################
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+      Tags:
+        - Key: Name
+          Value: !Sub ${Namespace}-${Environment}-LB
+
+  EC2HostSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          IpProtocol: -1
+      Tags:
+        - Key: Name
+          Value: !Sub ${Namespace}-${Environment}-ec2-hosts
+
 Outputs:
   VPC:
     Description: A reference to the created VPC
@@ -236,3 +261,11 @@ Outputs:
   PrivateSubnet2:
     Description: A reference to the private subnet in the 2nd Availability Zone
     Value: !Ref PrivateSubnet2
+
+  LoadBalancerSecurityGroup:
+    Description: A reference to the security group for load balancers
+    Value: !Ref LoadBalancerSecurityGroup
+
+  EC2HostSecurityGroup:
+    Description: A reference to the security group for EC2 hosts
+    Value: !Ref EC2HostSecurityGroup
