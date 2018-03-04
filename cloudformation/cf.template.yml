@@ -235,18 +235,45 @@ Resources:
         - Key: Name
           Value: !Sub ${Namespace}-${Environment}-ec2-hosts
 
+  # ############################################################################
+  # Load balancer
+  # ############################################################################
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${Namespace}-${Environment}-ALB
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Namespace}-${Environment}-ALB
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DefaultTargetGroup
+
+  DefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${Namespace}-${Environment}-default-TG
+      VpcId: !Ref VPC
+      Port: 80
+      Protocol: HTTP
+
+
 Outputs:
   VPC:
     Description: A reference to the created VPC
     Value: !Ref VPC
-
-  PublicSubnets:
-    Description: A list of the public subnets
-    Value: !Join [ ",", [ !Ref PublicSubnet1, !Ref PublicSubnet2 ]]
-
-  PrivateSubnets:
-    Description: A list of the private subnets
-    Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]]
 
   PublicSubnet1:
     Description: A reference to the public subnet in the 1st Availability Zone
@@ -271,3 +298,7 @@ Outputs:
   EC2HostSecurityGroup:
     Description: A reference to the security group for EC2 hosts
     Value: !Ref EC2HostSecurityGroup
+
+  LoadBalancerUrl:
+    Description: The URL of the ALB
+    Value: !GetAtt LoadBalancer.DNSName
