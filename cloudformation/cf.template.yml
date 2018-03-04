@@ -280,6 +280,8 @@ Resources:
       Port: 80
       Protocol: HTTP
 
+  # TODO: Add bastion host
+
   # ############################################################################
   # Service on EC2 Instance
   # ############################################################################
@@ -354,10 +356,10 @@ Resources:
               command: !Sub |
                 cd /etc/simpleapi
                 npm install --production
-            '5 - Launch SimpleAPI':
-              command: !Sub |
-                cd /etc/simpleapi
-                npm start
+            # '5 - Launch SimpleAPI':
+            #   command: !Sub |
+            #     cd /etc/simpleapi
+            #     npm start
 
           files:
             '/tmp/cwlogs.conf':
