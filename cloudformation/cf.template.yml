@@ -338,28 +338,35 @@ Resources:
               homeDir: /etc/simpleapi
 
           commands:
-            '1 - Install the CloudWatch logs agent':
+            '1 - Create home directory for simpleapi':
+              command: !Sub |
+                mkdir -p /etc/simpleapi
+                chown -R simpleapi:simpleapi /etc/simpleapi
+            '2 - Install the CloudWatch logs agent':
               command: !Sub |
                 cd /tmp
                 wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py
                 python awslogs-agent-setup.py -n -r ${AWS::Region} -c /tmp/cwlogs.conf || error_exit 'Failed to run CloudWatch Logs agent setup'
-            '2 - Install NodeJS':
+            '3 - Install GIT':
+              command: !Sub |
+                yum -y install git
+            '3 - Install NodeJS':
               command: !Sub |
                 curl --silent --location https://rpm.nodesource.com/setup_8.x | bash -
                 yum -y install nodejs
-            '3 - Download SimpleAPI':
+            '4 - Download SimpleAPI':
               command: !Sub |
                 cd /etc/simpleapi
                 git clone --depth=1 --branch=master ${SimpleAPIRepoUrl} .
                 rm -rf !$/.git
-            '4 - Install SimpleAPI dependencies':
+            '5 - Install SimpleAPI dependencies':
               command: !Sub |
                 cd /etc/simpleapi
                 npm install --production
-            # '5 - Launch SimpleAPI':
-            #   command: !Sub |
-            #     cd /etc/simpleapi
-            #     npm start
+            '6 - Launch SimpleAPI':
+              command: !Sub |
+                cd /etc/simpleapi
+                npm start
 
           files:
             '/tmp/cwlogs.conf':
@@ -406,6 +413,18 @@ Resources:
               - sts:AssumeRole
       Path: '/'
       RoleName: !Sub ${Namespace}-${Environment}-ec2-role
+      Policies:
+        - PolicyName: !Sub ${Namespace}-${Environment}-ec2-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: '*'
 
   InstanceProfile:
     Type: AWS::IAM::InstanceProfile
