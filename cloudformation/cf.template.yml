@@ -368,7 +368,7 @@ Resources:
             '6 - Launch SimpleAPI':
               command: !Sub |
                 cd /etc/simpleapi
-                npm start
+                su -p -c "npm start" -s /bin/sh simpleapi
 
           files:
             '/tmp/cwlogs.conf':
