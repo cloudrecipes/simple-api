@@ -317,6 +317,33 @@ Resources:
           - ScheduledActions
         WaitOnResourceSignals: true
 
+  SimpleApiTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VPC
+      Port: 3000
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /healthcheck
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+
+  SimpleApiListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 2
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /echo
+      Actions:
+        - TargetGroupArn: !Ref SimpleApiTargetGroup
+          Type: forward
+
   LaunchConfiguration:
     Type: AWS::AutoScaling::LaunchConfiguration
     Properties:
@@ -434,33 +461,6 @@ Resources:
       Path: /
       Roles:
         - !Ref InstanceRole
-
-  SimpleApiTargetGroup:
-    Type: AWS::ElasticLoadBalancingV2::TargetGroup
-    Properties:
-      VpcId: !Ref VPC
-      Port: 3000
-      Protocol: HTTP
-      Matcher:
-        HttpCode: 200-299
-      HealthCheckIntervalSeconds: 10
-      HealthCheckPath: /healthcheck
-      HealthCheckProtocol: HTTP
-      HealthCheckTimeoutSeconds: 5
-      HealthyThresholdCount: 2
-
-  SimpleApiListenerRule:
-    Type: AWS::ElasticLoadBalancingV2::ListenerRule
-    Properties:
-      ListenerArn: !Ref LoadBalancerListener
-      Priority: 2
-      Conditions:
-        - Field: path-pattern
-          Values:
-            - /echo
-      Actions:
-        - TargetGroupArn: !Ref SimpleApiTargetGroup
-          Type: forward
 
 Outputs:
   VPC:
