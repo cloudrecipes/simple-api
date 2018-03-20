@@ -1,0 +1,68 @@
+Description: This template deploys load balancer for SimpleAPI
+
+Parameters:
+  Environment:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  LoadBalancerSecurityGroup:
+    Description: Security group created for LoadBalancer
+    Type: String
+
+  Namespace:
+    Description: An infrastructure namespace that will be prefixed to resource names
+    Type: String
+    Default: simple-api
+
+  PublicSubnet1:
+    Description: A reference to the public subnet in the 1st Availability Zone
+    Type: String
+
+  PublicSubnet2:
+    Description: A reference to the public subnet in the 2nd Availability Zone
+    Type: String
+
+  VPC:
+    Description: A reference to the VPC
+    Type: String
+
+Resources:
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub ${Namespace}-${Environment}-ALB
+      Subnets:
+        - !Ref PublicSubnet1
+        - !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Tags:
+        - Key: Name
+          Value: !Sub ${Namespace}-${Environment}-ALB
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DefaultTargetGroup
+
+  DefaultTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub ${Namespace}-${Environment}-default-TG
+      VpcId: !Ref VPC
+      Port: 80
+      Protocol: HTTP
+
+Outputs:
+  LoadBalancerListener:
+    Description: The LoadBalancer Listener
+    Value: !Ref LoadBalancerListener
+
+  LoadBalancerUrl:
+    Description: The URL of the ALB
+    Value: !GetAtt LoadBalancer.DNSName

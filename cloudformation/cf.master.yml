@@ -1,0 +1,59 @@
+Description: This template deploys infrastructure for SimpleAPI
+
+Parameters:
+  Environment:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  Namespace:
+    Description: An infrastructure namespace that will be prefixed to resource names
+    Type: String
+    Default: simple-api
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.network.yml
+      Parameters:
+        Environment: !Ref Environment
+        Namespace: !Ref Namespace
+
+  SecurityGroups:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.security.groups.yml
+      Parameters:
+        Environment: !Ref Environment
+        Namespace: !Ref Namespace
+        VPC: !GetAtt VPC.Outputs.VPC
+
+  LoadBalancers:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.loadbalancer.yml
+      Parameters:
+        Environment: !Ref Environment
+        LoadBalancerSecurityGroup: !GetAtt SecurityGroups.Outputs.LoadBalancerSecurityGroup
+        Namespace: !Ref Namespace
+        PublicSubnet1: !GetAtt VPC.Outputs.PublicSubnet1
+        PublicSubnet2: !GetAtt VPC.Outputs.PublicSubnet2
+        VPC: !GetAtt VPC.Outputs.VPC
+
+  SimpleAPIService:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.service.instance.yml
+      Parameters:
+        EC2HostSecurityGroup: !GetAtt SecurityGroups.Outputs.EC2HostSecurityGroup
+        Environment: !Ref Environment
+        LoadBalancerListener: !GetAtt LoadBalancers.Outputs.LoadBalancerListener
+        Namespace: !Ref Namespace
+        PrivateSubnet1: !GetAtt VPC.Outputs.PrivateSubnet1
+        PrivateSubnet2: !GetAtt VPC.Outputs.PrivateSubnet2
+        VPC: !GetAtt VPC.Outputs.VPC
+
+Outputs:
+  LoadBalancerUrl:
+    Description: The URL of the ALB
+    Value: !GetAtt LoadBalancers.Outputs.LoadBalancerUrl
