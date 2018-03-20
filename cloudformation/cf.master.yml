@@ -14,7 +14,7 @@ Resources:
   VPC:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.network.yml
       Parameters:
         Environment: !Ref Environment
         Namespace: !Ref Namespace
@@ -22,31 +22,38 @@ Resources:
   SecurityGroups:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.security.groups.yml
       Parameters:
         Environment: !Ref Environment
         Namespace: !Ref Namespace
-        VPC: !Ref VPC.Outputs.VPC
+        VPC: !GetAtt VPC.Outputs.VPC
 
   LoadBalancers:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.loadbalancer.yml
       Parameters:
         Environment: !Ref Environment
+        LoadBalancerSecurityGroup: !GetAtt SecurityGroups.Outputs.LoadBalancerSecurityGroup
         Namespace: !Ref Namespace
-        PublicSubnet1: !Ref VPC.Outputs.PublicSubnet1
-        PublicSubnet2: !Ref VPC.Outputs.PublicSubnet2
-        VPC: !Ref VPC.Outputs.VPC
+        PublicSubnet1: !GetAtt VPC.Outputs.PublicSubnet1
+        PublicSubnet2: !GetAtt VPC.Outputs.PublicSubnet2
+        VPC: !GetAtt VPC.Outputs.VPC
 
   SimpleAPIService:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub https://s3.amazonaws.com/
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.service.instance.yml
       Parameters:
-        EC2HostSecurityGroup: !Ref SecurityGroups.Outputs.EC2HostSecurityGroup
+        EC2HostSecurityGroup: !GetAtt SecurityGroups.Outputs.EC2HostSecurityGroup
         Environment: !Ref Environment
+        LoadBalancerListener: !GetAtt LoadBalancers.Outputs.LoadBalancerListener
         Namespace: !Ref Namespace
-        PrivateSubnet1: !Ref VPC.Outputs.PrivateSubnet1
-        PrivateSubnet2: !Ref VPC.Outputs.PrivateSubnet2
-        VPC: !Ref VPC.Outputs.VPC
+        PrivateSubnet1: !GetAtt VPC.Outputs.PrivateSubnet1
+        PrivateSubnet2: !GetAtt VPC.Outputs.PrivateSubnet2
+        VPC: !GetAtt VPC.Outputs.VPC
+
+Outputs:
+  LoadBalancerUrl:
+    Description: The URL of the ALB
+    Value: !GetAtt LoadBalancers.Outputs.LoadBalancerUrl
