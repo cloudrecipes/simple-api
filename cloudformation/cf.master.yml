@@ -1,0 +1,52 @@
+Description: This template deploys infrastructure for SimpleAPI
+
+Parameters:
+  Environment:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  Namespace:
+    Description: An infrastructure namespace that will be prefixed to resource names
+    Type: String
+    Default: simple-api
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/
+      Parameters:
+        Environment: !Ref Environment
+        Namespace: !Ref Namespace
+
+  SecurityGroups:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/
+      Parameters:
+        Environment: !Ref Environment
+        Namespace: !Ref Namespace
+        VPC: !Ref VPC.Outputs.VPC
+
+  LoadBalancers:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/
+      Parameters:
+        Environment: !Ref Environment
+        Namespace: !Ref Namespace
+        PublicSubnet1: !Ref VPC.Outputs.PublicSubnet1
+        PublicSubnet2: !Ref VPC.Outputs.PublicSubnet2
+        VPC: !Ref VPC.Outputs.VPC
+
+  SimpleAPIService:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/
+      Parameters:
+        EC2HostSecurityGroup: !Ref SecurityGroups.Outputs.EC2HostSecurityGroup
+        Environment: !Ref Environment
+        Namespace: !Ref Namespace
+        PrivateSubnet1: !Ref VPC.Outputs.PrivateSubnet1
+        PrivateSubnet2: !Ref VPC.Outputs.PrivateSubnet2
+        VPC: !Ref VPC.Outputs.VPC

@@ -1,0 +1,216 @@
+Description: This template deploys service instances for SimpleAPI
+
+Parameters:
+  EC2HostSecurityGroup:
+    Description: Security group created for EC2 instance
+    Type: String
+
+  Environment:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  Namespace:
+    Description: An infrastructure namespace that will be prefixed to resource names
+    Type: String
+    Default: simple-api
+
+  PrivateSubnet1:
+    Description: A reference to the private subnet in the 1st Availability Zone
+    Type: String
+
+  PrivateSubnet2:
+    Description: A reference to the private subnet in the 2nd Availability Zone
+    Type: String
+
+  SimpleAPIRepoUrl:
+    Description: SimpleAPI source control URL
+    Type: String
+    Default: https://github.com/cloudrecipes/simple-api.git
+
+  VPC:
+    Description: A reference to the VPC
+    Type: String
+
+Mappings:
+  # Please add your region to mapping
+  AWSRegionToAMI:
+    ap-southeast-2:
+      AMI: ami-942dd1f6
+
+Resources:
+  AutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref PrivateSubnet1
+        - !Ref PrivateSubnet2
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      MinSize: 4
+      MaxSize: 4
+      DesiredCapacity: 4
+      Tags:
+        - Key: Name
+          Value: !Sub ${Namespace}-${Environment}-EC2-host
+          PropagateAtLaunch: true
+      TargetGroupARNs:
+        - !Ref SimpleApiTargetGroup
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT5M
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT5M
+        SuspendProcesses:
+          - HealthCheck
+          - ReplaceUnhealthy
+          - AZRebalance
+          - AlarmNotification
+          - ScheduledActions
+        WaitOnResourceSignals: true
+
+  SimpleApiTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      VpcId: !Ref VPC
+      Port: 3000
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckPath: /healthcheck
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 2
+
+  SimpleApiListenerRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Properties:
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 2
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /echo
+      Actions:
+        - TargetGroupArn: !Ref SimpleApiTargetGroup
+          Type: forward
+
+  LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      ImageId:  !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMI]
+      InstanceType: t2.micro
+      SecurityGroups:
+        - !Ref EC2HostSecurityGroup
+      IamInstanceProfile: !Ref InstanceProfile
+      UserData:
+        "Fn::Base64": !Sub |
+          #!/bin/bash
+          yum install -y aws-cfn-bootstrap
+          /opt/aws/bin/cfn-init -v --region ${AWS::Region} --stack ${AWS::StackName} --resource LaunchConfiguration
+          /opt/aws/bin/cfn-signal -e $? --region ${AWS::Region} --stack ${AWS::StackName} --resource AutoScalingGroup
+
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          users:
+            simpleapi:
+              homeDir: /etc/simpleapi
+
+          commands:
+            '1 - Create home directory for simpleapi':
+              command: !Sub |
+                mkdir -p /etc/simpleapi
+                chown -R simpleapi:simpleapi /etc/simpleapi
+            '2 - Install the CloudWatch logs agent':
+              command: !Sub |
+                cd /tmp
+                wget https://s3.amazonaws.com/aws-cloudwatch/downloads/latest/awslogs-agent-setup.py
+                python awslogs-agent-setup.py -n -r ${AWS::Region} -c /tmp/cwlogs.conf || error_exit 'Failed to run CloudWatch Logs agent setup'
+            '3 - Install GIT':
+              command: !Sub |
+                yum -y install git
+            '3 - Install NodeJS':
+              command: !Sub |
+                curl --silent --location https://rpm.nodesource.com/setup_8.x | bash -
+                yum -y install nodejs
+            '4 - Download SimpleAPI':
+              command: !Sub |
+                cd /etc/simpleapi
+                git clone --depth=1 --branch=master ${SimpleAPIRepoUrl} .
+                rm -rf !$/.git
+            '5 - Install SimpleAPI dependencies':
+              command: !Sub |
+                cd /etc/simpleapi
+                npm install --production
+            '6 - Launch SimpleAPI':
+              command: !Sub |
+                cd /etc/simpleapi
+                su -p -c "npm start" -s /bin/sh simpleapi
+
+          files:
+            '/tmp/cwlogs.conf':
+              content: !Sub |
+                [general]
+                state_file= /var/awslogs/agent-state
+                [simpleapi-stdout]
+                file = /etc/kg/simpleapi/out.log
+                log_group_name = /${Namespace}/${Environment}
+                log_stream_name = stdout
+                datetime_format = %Y-%m-%d %H:%M:%S.%f
+                [simpleapi-stderr]
+                file = /etc/kg/simpleapi/err.log
+                log_group_name = /${Namespace}/${Environment}
+                log_stream_name = stderr
+                datetime_format = %Y-%m-%d %H:%M:%S.%f
+                [cfn-init]
+                file = /var/log/cfn-init.log
+                log_group_name = /${Namespace}/${Environment}
+                log_stream_name = cfn-init
+                datetime_format = %Y-%m-%d %H:%M:%S.%f
+                [messages]
+                file = /var/log/messages
+                log_group_name = /${Namespace}/${Environment}
+                log_stream_name = messages
+                datetime_format = %b %m %H:%M:%S
+                [secure]
+                file = /var/log/secure
+                log_group_name = /${Namespace}/${Environment}
+                log_stream_name = secure
+                datetime_format = %b %m %H:%M:%S
+
+  InstanceRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: '/'
+      RoleName: !Sub ${Namespace}-${Environment}-ec2-role
+      Policies:
+        - PolicyName: !Sub ${Namespace}-${Environment}-ec2-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:DescribeLogStreams
+                Resource: '*'
+
+  InstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref InstanceRole
