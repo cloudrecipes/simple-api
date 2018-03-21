@@ -1,1 +1,34 @@
-# TODO: Add bastion host
+Description: This template deploys bastion instance for SimpleAPI
+
+Parameters:
+  Environment:
+    Description: An environment name that will be prefixed to resource names
+    Type: String
+
+  KeyName:
+    Description: EC2 key pair name for bastion host SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+
+  LogRetentionInDays:
+    Description: Number of days you would like your CloudWatch Logs to be retained
+    Type: Number
+    Default: 90
+
+  Namespace:
+    Description: An infrastructure namespace that will be prefixed to resource names
+    Type: String
+    Default: simple-api
+
+  PublicSubnet:
+    Description: A reference to the public subnet in the VPC
+    Type: String
+
+Mappings:
+  # Please add your region to mapping
+  AWSRegionToAMI:
+    ap-southeast-2:
+      AMI: ami-942dd1f6
+
+Resources:
+
+Outputs:
