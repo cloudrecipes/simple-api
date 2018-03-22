@@ -228,7 +228,7 @@ Resources:
   SshClosedConnectionMetricFilter:
     Type: AWS::Logs::MetricFilter
     Properties:
-      LogGroupName: !Ref BastionSecureLogGroup
+      LogGroupName: !Ref BastionLogGroup
       FilterPattern: "[Mon, day, timestamp, ip, id, msg1= Connection, msg2 = closed, ...]"
       MetricTransformations:
         - MetricValue: 1
