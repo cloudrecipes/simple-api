@@ -50,6 +50,7 @@ Resources:
     Properties:
       TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.bastion.instance.yml
       Parameters:
+        BastionSecurityGroup: !GetAtt SecurityGroups.Outputs.BastionSecurityGroup
         Environment: !Ref Environment
         KeyName: !Ref KeyName
         Namespace: !Ref Namespace

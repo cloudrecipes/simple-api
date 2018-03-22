@@ -1,6 +1,10 @@
 Description: This template deploys bastion instance for SimpleAPI
 
 Parameters:
+  BastionSecurityGroup:
+    Description: A reference to the security group for Bastion host
+    Type: String
+
   Environment:
     Description: An environment name that will be prefixed to resource names
     Type: String
@@ -145,7 +149,7 @@ Resources:
     Properties:
       SubnetId: !Ref PublicSubnet
       GroupSet:
-        - Fn::ImportValue: !Sub "${NetworkStackName}-BastionGroupID"
+        - !Ref BastionSecurityGroup
       SourceDestCheck: true
       Tags:
         - Key: Name

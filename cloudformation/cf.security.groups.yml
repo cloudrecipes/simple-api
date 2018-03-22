@@ -78,10 +78,14 @@ Resources:
           Value: !Sub ${Namespace}-${Environment}-bastion-host
 
 Outputs:
-  LoadBalancerSecurityGroup:
-    Description: A reference to the security group for load balancers
-    Value: !Ref LoadBalancerSecurityGroup
+  BastionSecurityGroup:
+    Description: A reference to the security group for Bastion host
+    Value: !Ref BastionSecurityGroup
 
   EC2HostSecurityGroup:
     Description: A reference to the security group for EC2 hosts
     Value: !Ref EC2HostSecurityGroup
+
+  LoadBalancerSecurityGroup:
+    Description: A reference to the security group for load balancers
+    Value: !Ref LoadBalancerSecurityGroup
