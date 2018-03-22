@@ -9,6 +9,10 @@ Parameters:
     Description: An environment name that will be prefixed to resource names
     Type: String
 
+  KeyName:
+    Description: EC2 key pair name for bastion host SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+
   LoadBalancerListener:
     Description: The LoadBalancer Listener
     Type: String
@@ -106,6 +110,7 @@ Resources:
     Properties:
       ImageId:  !FindInMap [AWSRegionToAMI, !Ref "AWS::Region", AMI]
       InstanceType: t2.micro
+      KeyName: !Ref KeyName
       SecurityGroups:
         - !Ref EC2HostSecurityGroup
       IamInstanceProfile: !Ref InstanceProfile
