@@ -50,6 +50,15 @@ Resources:
         - Key: Name
           Value: !Sub ${Namespace}-${Environment}-ec2-hosts
 
+  EC2HostSecurityGroupFromBastionIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref EC2HostSecurityGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      SourceSecurityGroupId: !Ref BastionSecurityGroup
+
   BastionSecurityGroup:
       Type: AWS::EC2::SecurityGroup
       Properties:
@@ -76,6 +85,15 @@ Resources:
         Tags:
         - Key: Name
           Value: !Sub ${Namespace}-${Environment}-bastion-host
+
+  BastionSecurityGroupToEC2HostEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref BastionSecurityGroup
+      IpProtocol: tcp
+      ToPort: 22
+      FromPort: 22
+      DestinationSecurityGroupId: !Ref EC2HostSecurityGroup
 
 Outputs:
   BastionSecurityGroup:
