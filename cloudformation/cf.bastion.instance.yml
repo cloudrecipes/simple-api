@@ -30,5 +30,225 @@ Mappings:
       AMI: ami-942dd1f6
 
 Resources:
+  ##############################################################################
+  # Bastion instance
+  ##############################################################################
+  BastionHost:
+    Type: AWS::EC2::Instance
+    DependsOn: BastionEipAssociation
+    Metadata:
+      AWS::CloudFormation::Init:
+        config:
+          packages:
+            yum:
+              awslogs: []
+              google-authenticator: []
+
+          files:
+            "/etc/cfn/cfn-hup.conf":
+              mode: "000444"
+              owner: root
+              group: root
+              content: !Sub |
+                [main]
+                stack=${AWS::StackId}
+                region=${AWS::Region}
+
+            "/etc/cfn/hooks.d/cfn-auto-reloader.conf":
+              mode: "000444"
+              owner: root
+              group: root
+              content: !Sub |
+                [cfn-auto-reloader-hook]
+                triggers=post.update
+                path=Resources.BastionHost.Metadata.AWS::CloudFormation::Init
+                action=/opt/aws/bin/cfn-init -v --stack ${AWS::StackName} --resource BastionHost --region ${AWS::Region}
+
+            "/etc/awslogs/awslogs.conf":
+              mode: "000444"
+              owner: root
+              group: root
+              content: !Sub |
+                [general]
+                use_gzip_http_content_encoding = true
+                state_file = /var/lib/awslogs/agent-state
+                [/var/log/secure]
+                file = /var/log/secure
+                log_group_name = ${BastionLogGroup}
+                log_stream_name = log
+                datetime_format = %b %d %H:%M:%S
+
+            "/etc/awslogs/awscli.conf":
+              mode: "000444"
+              owner: root
+              group: root
+              content: !Sub |
+                [plugins]
+                cwlogs = cwlogs
+                [default]
+                region = ${AWS::Region}
+
+          services:
+              sysvinit:
+                cfn-hup:
+                  enabled: true
+                  ensureRunning: true
+                  files:
+                    - /etc/cfn/cfn-hup.conf
+                    - /etc/cfn/hooks.d/cfn-auto-reloader.conf
+                awslogs:
+                  enabled: true
+                  ensureRunning: true
+                  files: /etc/awslogs/awslogs.conf
+
+    Properties:
+      InstanceType: t2.micro
+      KeyName: !Ref KeyName
+      NetworkInterfaces:
+        - NetworkInterfaceId: !Ref BastionNetworkInterface
+          DeviceIndex: 0
+      ImageId: !FindInMap [ AMIMap, !Ref "AWS::Region", AMI ]
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash -xe
+          yum update -y
+          /opt/aws/bin/cfn-init -v -s ${AWS::StackId} --resource BastionHost --region ${AWS::Region}
+          /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackId} --resource BastionHost --region ${AWS::Region}
+      IamInstanceProfile: !Ref BastionInstanceProfile
+      Tags:
+        - Key: Name
+          Value: !Sub ${Namespace}-${Environment}-bastion
+    CreationPolicy:
+      ResourceSignal:
+        Count: 1
+        Timeout: PT5M
+
+  ##############################################################################
+  # Bastion elastic IP and network interface
+  ##############################################################################
+  BastionEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  BastionEipAssociation:
+    Type: AWS::EC2::EIPAssociation
+    Properties:
+      AllocationId: !GetAtt BastionEip.AllocationId
+      NetworkInterfaceId: !Ref BastionNetworkInterface
+    DependsOn:
+      - BastionEip
+      - BastionNetworkInterface
+
+  BastionNetworkInterface:
+    Type: AWS::EC2::NetworkInterface
+    Properties:
+      SubnetId: !Ref PublicSubnet
+      GroupSet:
+        - Fn::ImportValue: !Sub "${NetworkStackName}-BastionGroupID"
+      SourceDestCheck: true
+      Tags:
+        - Key: Name
+          Value: startup-kit-bastion
+
+  ##############################################################################
+  # Bastion role
+  ##############################################################################
+  BastionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: CloudWatchLogs
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:DescribeLogStreams
+                  - logs:PutLogEvents
+                Resource: !GetAtt BastionLogGroup.Arn
+
+  BastionInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      Path: /
+      Roles:
+        - !Ref BastionRole
+
+  ##############################################################################
+  # Bastion logs
+  ##############################################################################
+  BastionLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      RetentionInDays: !Ref LogRetentionInDays
+
+  BastionLogGroupStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Ref BastionLogGroup
+      LogStreamName: log
+
+  ##############################################################################
+  # Bastion alarms
+  ##############################################################################
+  # When a user tries to SSH with invalid username the activity is logged in the SSH log file
+  SshInvalidUserMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref BastionLogGroup
+      FilterPattern: "[Mon, day, timestamp, ip, id, status = Invalid, ...]"
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: SSH
+          MetricName: sshInvalidUser
+
+  SshInvalidhUserAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: SSH connections attempted with invalid username is greater than 3 over 1 minutes
+      MetricName: sshInvalidUser
+      Namespace: SSH
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
+
+  # When a user uses a bad private key pair or username
+  SshClosedConnectionMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref BastionSecureLogGroup
+      FilterPattern: "[Mon, day, timestamp, ip, id, msg1= Connection, msg2 = closed, ...]"
+      MetricTransformations:
+        - MetricValue: 1
+          MetricNamespace: SSH
+          MetricName: sshClosedConnection
+
+  SshClosedConnectionAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: SSH connections closed due to invalid SSH key or username is greater than 5 in 5 minutes
+      MetricName: sshClosedConnection
+      Namespace: SSH
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: notBreaching
 
 Outputs:
+  BastionEip:
+    Description: EIP for bastion host
+    Value: !Ref BastionEip
