@@ -10,6 +10,13 @@ Parameters:
     Type: String
     Default: simple-api
 
+  SSHFrom:
+    Description: Limit SSH access to bastion hosts to a CIDR IP block
+    Type: String
+    MinLength: 9
+    MaxLength: 18
+    Default: 0.0.0.0/0
+
   VPC:
     Description: A reference to the VPC
     Type: String
@@ -35,9 +42,40 @@ Resources:
       SecurityGroupIngress:
         - SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
           IpProtocol: -1
+        - SourceSecurityGroupId: !Ref BastionSecurityGroup
+          IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
       Tags:
         - Key: Name
           Value: !Sub ${Namespace}-${Environment}-ec2-hosts
+
+  BastionSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Enable access to the bastion host
+        VpcId: !Ref VPC
+        SecurityGroupIngress:
+        - CidrIp: !Ref SSHFrom
+          IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
+        SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: 80
+          FromPort: 80
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: tcp
+          ToPort: 443
+          FromPort: 443
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: udp
+          ToPort: 123
+          FromPort: 123
+        Tags:
+        - Key: Name
+          Value: !Sub ${Namespace}-${Environment}-bastion-host
 
 Outputs:
   LoadBalancerSecurityGroup:
