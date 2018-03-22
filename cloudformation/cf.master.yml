@@ -5,6 +5,11 @@ Parameters:
     Description: An environment name that will be prefixed to resource names
     Type: String
 
+  KeyName:
+    Description: EC2 key pair name for bastion host SSH access
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: SimpleAPIKey
+
   Namespace:
     Description: An infrastructure namespace that will be prefixed to resource names
     Type: String
@@ -40,6 +45,16 @@ Resources:
         PublicSubnet2: !GetAtt VPC.Outputs.PublicSubnet2
         VPC: !GetAtt VPC.Outputs.VPC
 
+  Bastion:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.bastion.instance.yml
+      Parameters:
+        Environment: !Ref Environment
+        KeyName: !Ref KeyName
+        Namespace: !Ref Namespace
+        PublicSubnet: !GetAtt VPC.Outputs.PublicSubnet1
+
   SimpleAPIService:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -47,6 +62,7 @@ Resources:
       Parameters:
         EC2HostSecurityGroup: !GetAtt SecurityGroups.Outputs.EC2HostSecurityGroup
         Environment: !Ref Environment
+        KeyName: !Ref KeyName
         LoadBalancerListener: !GetAtt LoadBalancers.Outputs.LoadBalancerListener
         Namespace: !Ref Namespace
         PrivateSubnet1: !GetAtt VPC.Outputs.PrivateSubnet1
