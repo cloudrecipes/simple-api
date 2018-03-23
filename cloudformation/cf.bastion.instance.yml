@@ -46,7 +46,6 @@ Resources:
           packages:
             yum:
               awslogs: []
-              google-authenticator: []
 
           files:
             "/etc/cfn/cfn-hup.conf":
