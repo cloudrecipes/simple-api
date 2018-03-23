@@ -152,7 +152,7 @@ Resources:
       SourceDestCheck: true
       Tags:
         - Key: Name
-          Value: startup-kit-bastion
+          Value: bastion-network-interface
 
   ##############################################################################
   # Bastion role
