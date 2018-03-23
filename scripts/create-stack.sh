@@ -1,7 +1,12 @@
 #!/bin/bash
 
-AWS_PROFILE=antklim aws cloudformation create-stack --stack-name simple-api \
---template-url https://s3.amazonaws.com/antklim-cf-templates/simple-api/cf.master.yml \
---parameters ParameterKey=Environment,ParameterValue=dev \
+PROFILE=$1
+STACKNAME=$2
+BUCKET=$3
+ENVIRONMENT=$4
+
+AWS_PROFILE=$PROFILE aws cloudformation create-stack --stack-name $STACKNAME \
+--template-url https://s3.amazonaws.com/$BUCKET/cf.master.yml \
+--parameters ParameterKey=Environment,ParameterValue=$ENVIRONMENT \
 --capabilities CAPABILITY_NAMED_IAM \
 --region ap-southeast-2
