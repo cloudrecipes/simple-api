@@ -1,0 +1,5 @@
+--require ./test/setup
+--timeout 1000
+--recursive
+--check-leaks
+--slow 100
