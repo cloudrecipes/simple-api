@@ -9,4 +9,4 @@ install:
 script:
   - npm run test
 after_script:
-  - scripts/deploy-stack.sh
+  - scripts/deploy-stack.sh ap-southeast-2
