@@ -4,5 +4,9 @@ node_js:
 before_install:
   - pip install awscli --upgrade --user
   - export PATH=$PATH:$HOME/.local/bin
-script: |
-  npm run test
+install:
+  - npm install
+script:
+  - npm run test
+after_script:
+  - scripts/deploy-stack.sh
