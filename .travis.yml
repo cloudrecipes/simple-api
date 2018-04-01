@@ -9,4 +9,4 @@ install:
 script:
   - npm run test
 after_script:
-  - scripts/deploy-stack.sh ap-southeast-2 antklim-cf-templates simple-api-dev dev
+  - scripts/deploy-stack.js --region ap-southeast-2 --stack-name simple-api
