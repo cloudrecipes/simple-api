@@ -3,11 +3,11 @@
 const AWS = require('aws-sdk')
 const program = require('commander')
 
-// TODO: add wait untill stack create/update finishes
+const stackName = ({stackNamespace, stackEnvironment}) => `${stackNamespace}-${stackEnvironment}`
 
 const listStacks = (options) => {
   const {region, stackNamespace, stackEnvironment} = options
-  const stackName = `${stackNamespace}-${stackEnvironment}`
+  const stackname = stackName(options)
 
   const params = {
     StackStatusFilter: [
@@ -31,7 +31,7 @@ const listStacks = (options) => {
       }
 
       const {StackSummaries} = data
-      const exists = StackSummaries.find((e) => e.StackName === stackName)
+      const exists = StackSummaries.find((e) => e.StackName === stackname)
       resolve(exists)
     })
   })
@@ -39,10 +39,10 @@ const listStacks = (options) => {
 
 const deployStack = (options, exists) => {
   const {bucket, region, stackNamespace, stackEnvironment, version} = options
-  const stackName = `${stackNamespace}-${stackEnvironment}`
+  const StackName = stackName(options)
 
   const params = {
-    StackName: stackName,
+    StackName,
     Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
     Parameters: [
       {ParameterKey: 'Environment', ParameterValue: stackEnvironment},
@@ -55,9 +55,23 @@ const deployStack = (options, exists) => {
   const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
 
   return new Promise((resolve, reject) => {
-    console.log(`${exists ? 'Updating' : 'Creating'} stack: ${stackName}`)
+    console.log(`${exists ? 'Updating' : 'Creating'} stack: ${StackName}`)
     const action = exists ? cf.updateStack : cf.createStack
     action.call(cf, params, (err, data) => (err ? reject(err) : resolve(data)))
+  })
+}
+
+const waitForDeployFinish = (options, exists) => {
+  const {region} = options
+  const StackName = stackName(options)
+  const waitFor = exists ? 'stackUpdateComplete' : 'stackCreateComplete'
+
+  const params = {StackName}
+
+  const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
+
+  return new Promise((resolve, reject) => {
+    cf.waitFor(waitFor, params, (err, data) => (err ? reject(err) : resolve(data)))
   })
 }
 
@@ -70,8 +84,15 @@ const run = () => {
     .option('-v, --version <value>', 'Stack version (build number)')
     .parse(process.argv)
 
+  let stackExists
+
   listStacks(program)
-    .then((exists) => deployStack(program, exists))
+    .then((exists) => {
+      stackExists = exists
+      return Promise.resolve()
+    })
+    .then(() => deployStack(program, stackExists))
+    .then(() => waitForDeployFinish(program, stackExists))
     .then((data) => {
       console.log(data)
       process.exit(0)
