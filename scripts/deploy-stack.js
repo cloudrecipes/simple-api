@@ -4,8 +4,6 @@ const AWS = require('aws-sdk')
 const program = require('commander')
 
 // TODO: add wait untill stack create/update finishes
-// TODO: refactor create/update methods
-// TODO: add version to stack parameters
 
 const listStacks = (options) => {
   const {region, stackNamespace, stackEnvironment} = options
@@ -39,7 +37,7 @@ const listStacks = (options) => {
   })
 }
 
-const createStack = (options) => {
+const deployStack = (options, exists) => {
   const {bucket, region, stackNamespace, stackEnvironment, version} = options
   const stackName = `${stackNamespace}-${stackEnvironment}`
 
@@ -49,6 +47,7 @@ const createStack = (options) => {
     Parameters: [
       {ParameterKey: 'Environment', ParameterValue: stackEnvironment},
       {ParameterKey: 'Namespace', ParameterValue: stackNamespace},
+      {ParameterKey: 'Version', ParameterValue: version},
     ],
     TemplateURL: `https://s3.amazonaws.com/${bucket}/${version}/cf.master.yml`
   }
@@ -56,32 +55,9 @@ const createStack = (options) => {
   const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
 
   return new Promise((resolve, reject) => {
-    console.log(`Creating stack: ${stackName}`)
-    resolve({})
-    // cf.createStack(params, (err, data) => (err ? reject(err) : resolve(data)))
-  })
-}
-
-const updateStack = (options) => {
-  const {bucket, region, stackNamespace, stackEnvironment, version} = options
-  const stackName = `${stackNamespace}-${stackEnvironment}`
-
-  const params = {
-    StackName: stackName,
-    Capabilities: ['CAPABILITY_IAM'],
-    Parameters: [
-      {ParameterKey: 'Environment', ParameterValue: stackEnvironment},
-      {ParameterKey: 'Namespace', ParameterValue: stackNamespace},
-    ],
-    TemplateURL: `https://s3.amazonaws.com/${bucket}/${version}/cf.master.yml`
-  }
-
-  const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
-
-  return new Promise((resolve, reject) => {
-    console.log(`Updating stack: ${stackName}`)
-    resolve({})
-    // cf.updateStack(params, (err, data) => (err ? reject(err) : resolve(data)))
+    console.log(`${exists: 'Creating' : 'Updating'} stack: ${stackName}`)
+    const action = exists ? cf.createStack : cf.updateStack
+    action.call(null, params, (err, data) => (err ? reject(err) : resolve(data)))
   })
 }
 
@@ -95,7 +71,7 @@ const run = () => {
     .parse(process.argv)
 
   listStacks(program)
-    .then((exists) => (exists ? updateStack(program) : createStack(program)))
+    .then((exists) => deployStack(program, exists))
     .then((data) => {
       console.log(data)
       process.exit(0)
