@@ -15,6 +15,10 @@ Parameters:
     Type: String
     Default: simple-api
 
+  Version:
+    Description: Stack version issued by CI/CD
+    Type: String
+
 Resources:
   VPC:
     Type: AWS::CloudFormation::Stack

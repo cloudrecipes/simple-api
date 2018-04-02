@@ -40,7 +40,7 @@ const listStacks = (options) => {
 }
 
 const createStack = (options) => {
-  const {bucket, region, stackNamespace, stackEnvironment} = options
+  const {bucket, region, stackNamespace, stackEnvironment, version} = options
   const stackName = `${stackNamespace}-${stackEnvironment}`
 
   const params = {
@@ -50,7 +50,7 @@ const createStack = (options) => {
       {ParameterKey: 'Environment', ParameterValue: stackEnvironment},
       {ParameterKey: 'Namespace', ParameterValue: stackNamespace},
     ],
-    TemplateURL: `https://s3.amazonaws.com/${bucket}/cf.master.yml`
+    TemplateURL: `https://s3.amazonaws.com/${bucket}/${version}/cf.master.yml`
   }
 
   const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
@@ -63,7 +63,7 @@ const createStack = (options) => {
 }
 
 const updateStack = (options) => {
-  const {bucket, region, stackNamespace, stackEnvironment} = options
+  const {bucket, region, stackNamespace, stackEnvironment, version} = options
   const stackName = `${stackNamespace}-${stackEnvironment}`
 
   const params = {
@@ -73,7 +73,7 @@ const updateStack = (options) => {
       {ParameterKey: 'Environment', ParameterValue: stackEnvironment},
       {ParameterKey: 'Namespace', ParameterValue: stackNamespace},
     ],
-    TemplateURL: `https://s3.amazonaws.com/${bucket}/cf.master.yml`
+    TemplateURL: `https://s3.amazonaws.com/${bucket}/${version}/cf.master.yml`
   }
 
   const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
@@ -91,6 +91,7 @@ const run = () => {
     .option('-b, --bucket <value>', 'Templates bucket name')
     .option('-n, --stack-namespace <value>', 'Stack namespace')
     .option('-e, --stack-environment <value>', 'Stack environment')
+    .option('-v, --version <value>', 'Stack version (build number)')
     .parse(process.argv)
 
   listStacks(program)

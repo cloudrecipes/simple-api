@@ -9,4 +9,5 @@ install:
 script:
   - npm run test
 after_script:
-  - scripts/deploy-stack.js --region ap-southeast-2 --stack-name simple-api
+  # - scripts/upload-stack.sh
+  - scripts/deploy-stack.js -r ap-southeast-2 -n simple-api -e dev -b antklim-cf-templates/simple-api -v $TRAVIS_BUILD_NUMBER
