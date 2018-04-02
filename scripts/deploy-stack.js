@@ -55,7 +55,7 @@ const deployStack = (options, exists) => {
   const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
 
   return new Promise((resolve, reject) => {
-    console.log(`${exists: 'Creating' : 'Updating'} stack: ${stackName}`)
+    console.log(`${exists ? 'Creating' : 'Updating'} stack: ${stackName}`)
     const action = exists ? cf.createStack : cf.updateStack
     action.call(null, params, (err, data) => (err ? reject(err) : resolve(data)))
   })
