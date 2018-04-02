@@ -43,7 +43,7 @@ const deployStack = (options, exists) => {
 
   const params = {
     StackName: stackName,
-    Capabilities: ['CAPABILITY_IAM'],
+    Capabilities: ['CAPABILITY_IAM', 'CAPABILITY_NAMED_IAM'],
     Parameters: [
       {ParameterKey: 'Environment', ParameterValue: stackEnvironment},
       {ParameterKey: 'Namespace', ParameterValue: stackNamespace},
@@ -55,9 +55,9 @@ const deployStack = (options, exists) => {
   const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
 
   return new Promise((resolve, reject) => {
-    console.log(`${exists ? 'Creating' : 'Updating'} stack: ${stackName}`)
-    const action = exists ? cf.createStack : cf.updateStack
-    action.call(null, params, (err, data) => (err ? reject(err) : resolve(data)))
+    console.log(`${exists ? 'Updating' : 'Creating'} stack: ${stackName}`)
+    const action = exists ? cf.updateStack : cf.createStack
+    action.call(cf, params, (err, data) => (err ? reject(err) : resolve(data)))
   })
 }
 
