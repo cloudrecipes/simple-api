@@ -94,12 +94,10 @@ const run = () => {
     .then(() => deployStack(program, stackExists))
     .then(() => waitForDeployFinish(program, stackExists))
     .then((data) => {
-      console.log('Data')
       console.log(data)
       process.exit(0)
     })
     .catch((err) => {
-      console.log('Error')
       console.error(err)
       process.exit(1)
     })
