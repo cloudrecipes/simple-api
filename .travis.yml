@@ -9,4 +9,4 @@ install:
 script:
   - npm run test
   - scripts/upload-stack.js -b antklim-cf-templates/simple-api -v $TRAVIS_BUILD_NUMBER
-  - scripts/deploy-stack.js -r ap-southeast-2 -n simple-api -e dev -b antklim-cf-templates/simple-api -v $TRAVIS_BUILD_NUMBER
+  - travis_wait scripts/deploy-stack.js -r ap-southeast-2 -n simple-api -e dev -b antklim-cf-templates/simple-api -v $TRAVIS_BUILD_NUMBER
