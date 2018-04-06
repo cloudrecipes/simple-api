@@ -65,7 +65,6 @@ const waitForDeployFinish = (options, exists) => {
   const {region} = options
   const StackName = stackName(options)
   const waitFor = exists ? 'stackUpdateComplete' : 'stackCreateComplete'
-
   const params = {StackName}
 
   const cf = new AWS.CloudFormation({apiVersion: '2010-05-15', region})
